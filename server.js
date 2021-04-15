@@ -1,5 +1,6 @@
 const GameInstance = require('gamekitjs').default
 const CAHGame = require('./build/Game')
+const https = require('https')
 const PORT = process.env.PORT || 8000
 const MIN_PLAYERS = 3
 const MAX_PLAYERS = 16
@@ -139,6 +140,11 @@ async function startServer() {
             }
         })
     })
+
+    // Pings self every 50 seconds, never idles
+    setInterval(function() {
+        https.get("https://clo-server.herokuapp.com/")
+    }, 50000)
 }
 
 startServer()
