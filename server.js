@@ -17,7 +17,7 @@ async function startServer() {
             try {
                 const room = Game.createRoom(MIN_PLAYERS, MAX_PLAYERS, MAX_POINTS)
                 fn(room)
-                return
+                console.log(`ROOM ${room.code} has been created`)
             } catch (err) {
                 return socket.emit('error', err.message)
             }
@@ -27,7 +27,6 @@ async function startServer() {
             try {
                 const room = Game.getRoom(code)
                 socket.emit('join room', room)
-                return
             } catch (err) {
                 return socket.emit('error', err.message)
             }
@@ -37,7 +36,6 @@ async function startServer() {
             try {
                 const room = Game.getRoom(code)
                 room.isPublic = isPublic
-                return
             } catch (err) {
                 return socket.emit('error', err.message)
             }
@@ -47,7 +45,6 @@ async function startServer() {
             try {
                 const room = Game.getRoom(code)
                 fn(room.players)
-                return
             } catch (err) {
                 return socket.emit('error', err.message)
             }
@@ -59,7 +56,8 @@ async function startServer() {
                 const player = room.addNewPlayer(name, socket.id)
                 player.broadcastToRoom('player added', player, room)
                 fn(player, room)
-                return
+                socket.roomCode = room.code
+                console.log(`ROOM ${room.code}: Player ${player.displayName} has joined`)
             } catch (err) {
                 return socket.emit('error', err.message)
             }
@@ -71,7 +69,7 @@ async function startServer() {
                 room.startGame(type || "Default")
                 room.broadcast('game started', room)
                 room.broadcast('round started', room)
-                return
+                console.log(`ROOM ${room.code}: Game started with ${room.players.length} players`)
             } catch (err) {
                 return socket.emit('error', err.message)
             }
@@ -82,7 +80,7 @@ async function startServer() {
                 const room = Game.getRoom(code)
                 room.startNewRound()
                 room.broadcast('round started', room)
-                return
+                console.log(`ROOM ${room.code}: New round started with ${room.players.length} players`)
             } catch (err) {
                 return socket.emit('error', err.message)
             }
@@ -95,13 +93,15 @@ async function startServer() {
                 const submission = player.makeSubmission(card)
                 fn(submission)
 
+                console.log(`ROOM ${room.code}: Player ${player.displayName} made a submission`)
+
                 const playerSubmissions = room.getPlayerSubmissions()
                 room.broadcast('player made submission', playerSubmissions)
                 if (playerSubmissions.length === room.players.length - 1) {
                     room.beginSelectionStage()
                     room.broadcast('selection stage started', playerSubmissions)
+                    console.log(`ROOM ${room.code}: Submission stage has begun`)
                 }
-                return
             } catch (err) {
                 return socket.emit('error', err.message)
             }
@@ -113,28 +113,56 @@ async function startServer() {
                 room.selectWinningSubmission(submission)
                 if (room.gameWinner) {
                     room.broadcast('game ended', room.gameWinner)
+                    console.log(`ROOM ${room.code}: Player ${room.gameWinner.displayName} won the game!`)
                 } else {
                     room.broadcast('round ended', room.roundWinner)
+                    console.log(`ROOM ${room.code}: Player ${room.roundWinner.displayName} won the round! They now have ${room.roundWinner.points} points`)
                 }
-                return
             } catch (err) {
                 return socket.emit('error', err.message)
             }
         })
 
-        socket.on('player left', (code, playerObj) => {
+        socket.on('disconnect', () => {
             try {
+                const code = socket.roomCode
+                if (!code) return
+
                 const room = Game.getRoom(code)
-                const player = room.players.find(el => el.socketID === playerObj.socketID)
+                const player = room.players.find(el => el.socketID === socket.id)
                 room.removePlayer(player)
                 player.broadcastToRoom('player left', player, room)
+                console.log(`ROOM ${room.code}: Player ${player.displayName || "NO_NAME"} has left`)
 
-                const playerSubmissions = room.getPlayerSubmissions()
-                if (playerSubmissions.length === room.players.length - 1) {
-                    room.beginSelectionStage()
-                    room.broadcast('selection stage started', playerSubmissions)
+                if (room.host.socketID === socket.id) {
+                    throw Error("Host left the room.")
                 }
-                return
+
+                delete player
+
+                if (room.players.length === 0) {
+                    Game.closeRoom(room.code)
+                    console.log(`ROOM ${room.code} closed`)
+                    return
+                }
+
+                if (room.isInProgress) {
+                    if (player.socketID === room.cardCzar.socketID) {
+                        console.log(`ROOM ${room.code}: Card Czar left`)
+                        room.startNewRound()
+                        room.broadcast('round started', room)
+                        console.log(`ROOM ${room.code}: New round started with ${room.players.length} players`)
+                        return
+                    }
+
+                    const playerSubmissions = room.getPlayerSubmissions()
+                    if (playerSubmissions.length === room.players.length - 1) {
+                        room.beginSelectionStage()
+                        room.broadcast('selection stage started', playerSubmissions)
+                        console.log(`ROOM ${room.code}: Submission stage has begun`)
+                        return
+                    }
+                }
             } catch (err) {
                 return socket.emit('error', err.message)
             }

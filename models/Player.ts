@@ -32,10 +32,6 @@ class CAHPlayer extends Player {
             currentSubmission = new Submission(this, [card])
             room.submissions.push(currentSubmission)
         }
-        
-        if (room.submissions.length === room.players.length - 1) {
-            console.log('All players have made a submission')
-        }
 
         return currentSubmission
     }

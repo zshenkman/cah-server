@@ -58,10 +58,6 @@ class CAHRoom extends Room {
         if (submissionIndex > -1) {
             this.submissions.splice(submissionIndex, 1) 
         }
-
-        if (this.submissions.length < this.players.length - 1) {
-            this.beginSelectionStage()
-        }
     }
 
     startGame(type?: string) {
