@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "allowJs": false,
+    "esModuleInterop": true,
+    "target": "es5",
+    "module": "commonjs",
+    "declaration": true,
+    "resolveJsonModule": true,
+    "outDir": "build",
+    "strict": false
+  },
+  "exclude": ["node_modules", "build"]
+}
